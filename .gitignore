@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.claude/
+res_sim/*
+!res_sim/paper/
+archive/
+
+# Copyrighted third-party documents: kept locally, never published
+hardware/**/datasheets/
+res_exp/materials/vendor_sheets/
+writing/**/*.pdf
+literature/**/*.pdf
+!literature/literature_review.pdf
+# LaTeX build products
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Regenerable CAD exports (rebuild with the test_rigs scripts)
+hardware/cad/test_rigs/*/step/

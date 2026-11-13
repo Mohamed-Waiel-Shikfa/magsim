@@ -1,0 +1,83 @@
+* Magnetiser SPICE models (ngspice), REGENERATIVE-SCR variant of magnetiser.lib (task 6).
+* Same subcircuit names and pins as magnetiser.lib; the VO4258H and DCROWBAR models are byte-identical
+* copies. Only CLA100E1200HB changes: the original is a gate-controlled conductance (it conducts as soon
+* as the gate drive rises and needs that drive to keep conducting), this one is a latch.
+* Units: SI. Datasheet page numbers refer to Littelfuse/IXYS CLA100E1200HB, rev. 20210601d
+* ($KICAD/magnetiser/Littelfuse_Power_Semiconductors_CLA100E1200HB_Datasheet.pdf). See README_regen.md.
+
+* ---------------------------------------------------------------------------
+* IXYS/Littelfuse CLA100E1200HB thyristor (TO-247: 1=K 2=A 3=G), regenerative latch.
+*
+* State variables (node voltages, dimensionless):
+*   q   gate charge, 0 .. 2. Charges while I_G > IGT = 40 mA (p.2, IGT max at TVJ = 25 degC, VD = 6 V):
+*         dq/dt = ((I_G - IGT)/45 mA)^1.55 / 3.3 us,
+*       so a constant gate current fires after t = 3.3 us (45 mA/(I_G - IGT))^1.55 plus the latch rise
+*       below. Shape fitted to p.5 Fig. 5 (gate controlled delay time, typ. curve): tgd - 1.2 us follows
+*       (I_G - I_asym)^-1.55 (read: 4.5 us at 100 mA, ~20 us at 70 mA, ~100 us at 60 mA, 1.6 us at 200 mA,
+*       I_asym = 55 mA). # ASSUMPTION: the Fig. 5 curve (TVJ = 125 degC, VD = 1/2 VDRM) is shifted so its
+*       asymptote sits at the 25 degC table value IGT = 40 mA; then tgd(0.5 A) = 1.0 us + ~0.1 us,
+*       inside the p.2 limit tgd <= 2 us (IG = 0.5 A). Below IGT q decays with 10 us
+*       (# ASSUMPTION: stored gate charge lifetime, not in the datasheet), so I_G < IGT never fires.
+*   lat latch state, first-order lag (1k * 1.5 nF = 1.5 us) towards 1 while q > 1 OR the device is
+*       latched in (lk). The main switch carries NO forward current until lat > 0.5 (G ~ (lat-0.5)^2,
+*       exactly zero below), so V_AK stays at the circuit value while the gate charges, as in a real
+*       thyristor during tgd. lat reaches 0.5 after 1.5 us ln 2 = 1.0 us (p.5 Fig. 5 typ. floor 1.2 us).
+*   lk  latched-in flag (100 ns lag): set when lat > 0.5 and I_A > IL = 150 mA (p.2, latching current
+*       max, 25 degC); held while I_A > IH = 100 mA (p.2, holding current max, 25 degC, RGK = inf).
+*       Regeneration: lk keeps lat at 1 without any gate current. When I_A falls below IH the flag
+*       drops, lat decays and the device blocks (natural commutation); it does not refire unless the
+*       gate fires it again.
+* On-state: series diode refitted to the p.2 table at TVJ = 25 degC: VT = 1.37 V at 100 A and 1.78 V
+*   at 200 A (N = 1.5 kept): IS = 8.86e-10 A, total series resistance 3.831 mOhm = RS 3.731 mOhm +
+*   1/GON (GON = 1e4 S). # ASSUMPTION: extrapolated to kA (the table stops at 200 A; die heating during
+*   the pulse is not modelled). The original model (5 mOhm + IS 1.8e-8) drops 8.5 V at 1.5 kA, this one 6.8 V.
+* Off-state: 1e-8 S (p.2: I_R/D <= 10 uA at 1200 V, 25 degC), reverse blocking by the series diode
+*   (BV 1300 V = VRSM, p.2). Gate junction: unchanged from magnetiser.lib (VGT ~1.1 V at 40 mA;
+*   p.2 VGT <= 1.5 V). Not modelled: dv/dt triggering, tq, reverse recovery, temperature.
+* Smooth tanh steps (widths 0.02 for states, 5-10 mA for currents) keep ngspice converging.
+* ---------------------------------------------------------------------------
+.subckt CLA100E1200HB A G K
+Vsa A a1 0
+Bsw a1 a2 I = V(a1,a2) * (1e4 * pow(max(V(lat)-0.5, 0)/0.5, 2) + 1e-8)
+D1 a2 K DSCR
+Dg G g1 DGATE
+Vsg g1 K 0
+* gate charge q (Cq = 1 nF: B current 1e-9 * dq/dt); clamp at q = 2
+Bq 0 q I = 1e-9 * (pow(max(I(Vsg)-40m, 0)/45m, 1.55)/3.3u * 0.5*(1-tanh((V(q)-2)/0.05))
++ - V(q)/10u * 0.5*(1-tanh((I(Vsg)-40m)/1m)))
+Cq q 0 1n
+Rq q 0 1G
+* latched-in flag
+Blk xk 0 V = 0.5*(1+tanh((V(lat)-0.5)/0.02)) * max(0.5*(1+tanh((I(Vsa)-150m)/10m)),
++ 0.5*(1+tanh((V(lk)-0.5)/0.02)) * 0.5*(1+tanh((I(Vsa)-100m)/5m)))
+Rlk xk lk 1k
+Clk lk 0 100p
+* latch state
+Blat x 0 V = max(0.5*(1+tanh((V(q)-1)/0.02)), 0.5*(1+tanh((V(lk)-0.5)/0.02)))
+Rlat x lat 1k
+Clat lat 0 1.5n
+.model DSCR D(IS=8.86e-10 N=1.5 RS=3.731m BV=1300)
+.model DGATE D(IS=1.6e-10 N=2 RS=2 CJO=1n)
+.ends
+
+* ---------------------------------------------------------------------------
+* Vishay VO4258H phototriac (DIP-6: 1=A 2=C 4=MT1 6=MT2)
+* LED Vf ~1.2 V @ 10 mA. Output on while IF > IFT; IFT(H bin) = 2 mA max,
+*   modelled at 1.5 mA. VTM = 3 V max @ 300 mA, modelled as 8 ohm.
+* No latching of the triac itself (LED pulse is held longer than SCR latch).
+* ---------------------------------------------------------------------------
+.subckt VO4258H A C MT1 MT2
+Dled A l1 DLED
+Vsl l1 C 0
+Bon x 0 V = 0.5*(1+tanh((I(Vsl)-1.5m)/0.2m))
+Ron x on 1k
+Con on 0 1n
+Bsw MT2 MT1 I = V(MT2,MT1) * (V(on) / 8 + 1.25e-10)
+.model DLED D(IS=2.5e-13 N=1.9)
+.ends
+
+* ---------------------------------------------------------------------------
+* Anti-parallel / freewheel diode: Vishay VS-60EPS12-M3 (1200 V, 60 A, IFSM 1000 A).
+*   Fitted to VF = 1.09 V @ 60 A; RS extrapolates to ~2.3 V @ 500 A.
+* ---------------------------------------------------------------------------
+.model DCROWBAR D(IS=1.7e-8 N=1.6 RS=3m BV=1200 TT=1u CJO=200p)

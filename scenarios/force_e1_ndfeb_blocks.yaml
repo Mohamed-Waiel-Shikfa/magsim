@@ -1,0 +1,38 @@
+# E1 (docs/SPEC.md "Reference cases"): two NdFeB blocks 20 x 10 x 5 mm, magnetised through the 5 mm
+# thickness, stacked face to face (20 x 10 faces) and attracting; measured gaps 2-10 mm
+# (res_exp/force/mag_force_data.csv, "NIB" group). SI units.
+name: e1_ndfeb_blocks
+temperature_C: 20
+materials:
+  # N42 is the datasheet guess for the measured blocks; `validate` fits Br (one amplitude parameter,
+  # everything else fixed at the N42 library values). The sweep below is the unfitted N42 prediction.
+  block: {grade: N42}
+magnets:
+  - name: A
+    shape: {type: cuboid, dims: [0.020, 0.010, 0.005]}
+    material: block
+    pose: {position: [0.0, 0.0, -0.0025]}
+    easy_axis: [0, 0, 1]
+    mesh: {n: [8, 4, 2]}       # k = 2 of the (4,2,1) k family; GCI at 2 mm in validation.md
+  - name: B
+    shape: {type: cuboid, dims: [0.020, 0.010, 0.005]}
+    material: block
+    easy_axis: [0, 0, 1]
+    mesh: {n: [8, 4, 2]}
+layout: {body: B, reference: A, gap: 2.0e-3}
+target: B
+protocol: [isolate, place, measure]
+outputs: [Fz, Tx, Ty, J_mean, J_min, H_par_mean, iterations, residual, converged, all_converged]
+sweep:
+  name: gap
+  axes:
+    - {path: layout.gap, linspace: [2.0e-3, 1.0e-2, 9]}
+  plot: {y: [Fz]}
+validation:
+  checks:
+    # Br fit; the mesh study (GCI of Fz at 2 mm at the fitted Br) corrects it to the mesh limit
+    - e1_fit:
+        fit_path: materials.block.Br
+        theta0: 0.85
+        n_boot: 2000
+        mesh_study: {base_n: [[4, 2, 1], [4, 2, 1]], factors: [1, 2, 3]}

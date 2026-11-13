@@ -1,0 +1,36 @@
+[project]
+name = "magsim"
+version = "0.1.0"
+description = "Permanent-magnet force and EPM switching simulators"
+authors = [
+    { name = "Mohamed Waiel Shikfa", email = "mshikfa@andrew.cmu.edu" }
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "magpylib>=6.0.1",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "pandas>=3.1.0",
+    "pyyaml>=6.0.3",
+    "scikit-fem>=12.0.2",
+    "scipy>=1.18.1",
+    "streamlit>=1.66.1",
+]
+
+[project.scripts]
+magsim = "magsim.cli:main"
+magsim-ui = "magsim.ui.launch:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+cache_dir = ".venv/.pytest_cache"
+markers = ["slow: tests taking more than 10 s (deselect with -m 'not slow')"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]

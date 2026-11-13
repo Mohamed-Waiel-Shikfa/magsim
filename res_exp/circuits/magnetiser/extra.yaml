@@ -1,0 +1,34 @@
+# Magnetiser board (reference driver for R1/R2/R3): parts the schematic does not draw, nominal case of
+# $KICAD/magnetiser/sim/run_sim.py (CASES["nominal"]: 1 x 780 uF, ESR 70 mOhm, V_CHARGE = 450 V).
+# Read by magsim.circuit.netlist.load_circuit(); file names are relative to this folder. SI units
+# (SPICE lines use SPICE scale suffixes: u = 1e-6, m = 1e-3, n = 1e-9, G = 1e9).
+netlist: magnetiser.cir          # kicad-cli sch export netlist --format spice (see README.md)
+models: [magnetiser.lib]         # replaces the netlist's absolute .include of the same file name
+coil_nodes: ["/COIL_A", "/COIL_B"]   # coil connector nets; positive coil current /COIL_A -> /COIL_B
+
+extra_lines:
+  - C1 cap_int 0 780u            # bank capacitance, TDK B43657 780 uF / 450 V (run_sim.py nominal)
+  - RESR1 /VBUS cap_int 70m      # bank ESR, run_sim.py nominal (datasheet max 170 m is the esr_max case)
+  - VGP16 gp16_src /PICO_GND PULSE(0 3.3 10u 100n 100n 200u 2)   # Pico GP16 fire pulse, 200 us = main.py PULSE_US
+  - RGP16 gp16_src /GP16 40      # Pico pin output resistance
+  - VGP17 gp17_src /PICO_GND 0   # GP17 (other bridge diagonal) held low
+  - RGP17 gp17_src /GP17 40
+  - RISO /PICO_GND 0 1G          # isolated Pico ground referenced to power ground
+
+tran: {tstep: 50.0e-9, tstop: 1.5e-3, tmax: null, uic: false}
+ic: {cap_int: 450.0}             # bank pre-charged to V_CHARGE = 450 V
+options: {method: gear, reltol: 1.0e-4}
+save: ["@d1[id]", "@d2[id]", "@d3[id]", "@d4[id]"]
+vectors: ["v(cap_int)", "v(/vbus)", "v(/coil_a)", "v(/coil_b)", "i(v.xq1.vsa)", "i(v.xq4.vsa)",
+          "i(v.xu1.vsl)", "i(v.xu4.vsl)", "i(v.xq1.vsg)", "i(v.xq4.vsg)", "i(vgp16)",
+          "@d1[id]", "@d2[id]", "@d3[id]", "@d4[id]"]
+fire_time: 10.0e-6               # GP16 rising edge [s]; run_sim.py reports t_peak relative to it
+
+# run_sim.py's fixed coil (L1 /COIL_A coil_m 10u ; RCOIL1 coil_m /COIL_B 60m), for regression only
+reference_coil: {L: 10.0e-6, R0: 60.0e-3}
+reference_coil_lines:
+  - L1 /COIL_A coil_m 10u
+  - RCOIL1 coil_m /COIL_B 60m
+# $KICAD/magnetiser/sim/results/metrics.txt (2026-10-26, schematic then had RG = 470, RLED = 330)
+reference_metrics_old: {I_coil_peak_A: 1906.0, t_peak_us: 103.0, coil_didt_max_A_per_us: 41.73,
+                        Vcap_end_V: -0.02327, coil_I2t_A2s: 589.2, SCR_I2t_A2s: 535.3}

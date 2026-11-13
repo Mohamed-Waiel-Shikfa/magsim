@@ -1,0 +1,44 @@
+# R3 (docs/SPEC.md "Reference cases", switching part is ILLUSTRATIVE): LNG37 Alnico rod D4.75 x 12.5 mm,
+# axial, initially saturated along -z, switched to +z by the illustrative round-wire solenoid
+# magsim.coil.reference_coil_r3 (126 turns of 0.5 mm wire on a 0.25 mm former). The magnetiser board's
+# anode-fired SCR gate needs ~90 V across each thyristor to fire (README_regen.md), so R3 is driven from the
+# generic capacitor-discharge circuit scenarios/circuits/cap_discharge.cir; the sweep runs the bus voltage
+# from not switched to fully switched. SI units.
+name: switch_r3_lng37_rod
+description: R3 LNG37 rod, illustrative solenoid, generic capacitor discharge (bus-voltage sweep)
+
+circuit:
+  netlist: scenarios/circuits/cap_discharge.cir
+  coil_nodes: [coil_a, "0"]
+  ic: {cap: 12.0}                          # bus voltage [V]
+  bank: {element: C1, node: cap}
+  tran: {tstep: 100.0e-9, tstop: 2.5e-3}
+  fire_time: 10.0e-6
+
+coil:
+  reference: r3
+  pose: {position: [0.0, 0.0, 0.0]}
+  temperature_C: 20.0
+
+magnet:
+  name: r3
+  shape: {type: cylinder, diameter: 0.00475, height: 0.0125}
+  material: {grade: LNG37}                 # vendor sheet row (Br 1.20 T, Hcj 49 kA/m), magsim library
+  pose: {position: [0.0, 0.0, 0.0]}
+  easy_axis: [0.0, 0.0, 1.0]
+  mesh: {n: [3, 1, 9], q: 2}               # full annuli (exact axisymmetric kernels)
+  initial: -sat
+  temperature_C: 20.0
+
+target_direction: [0.0, 0.0, 1.0]
+eddy: {enabled: true, n_r: 3, n_z: 3}      # rho_e from the LNG37 (Alnico 5 class) row, 4.7e-7 Ohm m
+coupling: {tol: 1.0e-4, max_iter: 15, field_tol: 2.5e-3}
+outputs: {dir: res_sim/switch_r3_lng37_rod, figures: true}
+
+sweep:
+  axes:
+    - {path: circuit.ic.cap, values: [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 16.0, 20.0, 25.0, 30.0]}
+  workers: 4
+  plots:
+    - {x: circuit.ic.cap, xlabel: "bus voltage [V]",
+       y: [switched_fraction, relative_remanence, I_pk_A, H_felt_weakest_A_per_m]}

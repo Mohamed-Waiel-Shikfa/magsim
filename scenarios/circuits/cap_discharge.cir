@@ -1,0 +1,16 @@
+* Generic capacitor-discharge pulse driver (magsim task 6; illustrative, not a built board). SI units.
+* Bank C1 (initial voltage from the scenario: ic: {cap: V0}), ESR, an ideal voltage-controlled switch that
+* closes at 10 us and stays closed, and a freewheel (crowbar) diode across the coil: once the bank has
+* emptied the diode clamps it near 0 V (no reversal) and the coil current decays through the diode.
+* The magsim coil subcircuit goes between coil_a and ground (scenario coil_nodes: [coil_a, "0"]).
+* # ASSUMPTION: 1000 uF bank, 20 mOhm ESR, 5 mOhm switch: round values for an illustrative low-voltage driver.
+* Diode model = DCROWBAR of res_exp/circuits/magnetiser/magnetiser.lib (VS-60EPS12 fit, VF = 1.09 V at 60 A).
+C1 cap 0 1000u
+RESR1 cap bus 20m
+S1 bus coil_a ctrl 0 SWIDEAL
+VCTRL ctrl 0 PULSE(0 1 10u 100n 100n 10 20)
+RCTRL ctrl 0 1meg
+DFW 0 coil_a DFREE
+.model SWIDEAL SW(RON=5m ROFF=1e9 VT=0.5 VH=0.1)
+.model DFREE D(IS=1.7e-8 N=1.6 RS=3m BV=1200 TT=1u CJO=200p)
+.end

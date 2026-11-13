@@ -1,0 +1,65 @@
+* Magnetiser SPICE models (ngspice): magnetiser_regen.lib PLUS a realistic opto turn-on delay (task 6).
+* The CLA100E1200HB and DCROWBAR blocks are identical to magnetiser_regen.lib (checked by
+* tests/test_switching.py); only VO4258H differs (charge-control turn-on delay). See README_regen.md.
+* Units: SI.
+
+* ---------------------------------------------------------------------------
+* IXYS/Littelfuse CLA100E1200HB thyristor (TO-247: 1=K 2=A 3=G), regenerative latch.
+* Documentation of every parameter: magnetiser_regen.lib (same block).
+* ---------------------------------------------------------------------------
+.subckt CLA100E1200HB A G K
+Vsa A a1 0
+Bsw a1 a2 I = V(a1,a2) * (1e4 * pow(max(V(lat)-0.5, 0)/0.5, 2) + 1e-8)
+D1 a2 K DSCR
+Dg G g1 DGATE
+Vsg g1 K 0
+* gate charge q (Cq = 1 nF: B current 1e-9 * dq/dt); clamp at q = 2
+Bq 0 q I = 1e-9 * (pow(max(I(Vsg)-40m, 0)/45m, 1.55)/3.3u * 0.5*(1-tanh((V(q)-2)/0.05))
++ - V(q)/10u * 0.5*(1-tanh((I(Vsg)-40m)/1m)))
+Cq q 0 1n
+Rq q 0 1G
+* latched-in flag
+Blk xk 0 V = 0.5*(1+tanh((V(lat)-0.5)/0.02)) * max(0.5*(1+tanh((I(Vsa)-150m)/10m)),
++ 0.5*(1+tanh((V(lk)-0.5)/0.02)) * 0.5*(1+tanh((I(Vsa)-100m)/5m)))
+Rlk xk lk 1k
+Clk lk 0 100p
+* latch state
+Blat x 0 V = max(0.5*(1+tanh((V(q)-1)/0.02)), 0.5*(1+tanh((V(lk)-0.5)/0.02)))
+Rlat x lat 1k
+Clat lat 0 1.5n
+.model DSCR D(IS=8.86e-10 N=1.5 RS=3.731m BV=1300)
+.model DGATE D(IS=1.6e-10 N=2 RS=2 CJO=1n)
+.ends
+
+* ---------------------------------------------------------------------------
+* Vishay VO4258H phototriac (DIP-6: 1=A 2=C 4=MT1 6=MT2), with a charge-control TURN-ON DELAY.
+* Vishay VO4258 datasheet rev. 1.9 (19-Jan-2022, doc. 84635, $KICAD/magnetiser/vo4258.pdf), p.5 Fig. 8
+*   (trigger current vs turn-on time) read at (3.0 mA, 65 us), (2.0 mA, 125 us), (1.4 mA, 320 us):
+*   (I_F - 1.0 mA) * t_on = 130, 125, 128 nC, i.e. t_on = 128 nC / (I_F - 1.0 mA).
+*   Implemented as an LED charge q: dq/dt = (I_F - 1 mA)/128 nC, output on when q > 1; q decays with
+*   2 us when I_F < 1 mA (# ASSUMPTION: the output drops out quickly once the LED is off; the datasheet
+*   gives only a normalised holding current, p.5 Fig. 9). At the board's I_F ~ 3.9 mA: t_on ~ 44 us,
+*   inside the firmware's 30-70 us estimate ($KICAD/magnetiser/main.py PULSE_US comment).
+*   p.5 Fig. 10 (IFT vs LED pulse width, 25 degC) implies a shorter 68 nC / (I_F - 1.0 mA) (~23 us);
+*   Fig. 8 is used (the slower, conservative reading). Everything else as magnetiser.lib:
+*   LED Vf ~1.2 V @ 10 mA; VTM = 3 V max @ 300 mA, modelled as 8 ohm; no latching of the triac.
+* ---------------------------------------------------------------------------
+.subckt VO4258H A C MT1 MT2
+Dled A l1 DLED
+Vsl l1 C 0
+Bq 0 q I = 1e-9 * (max(I(Vsl)-1m, 0)/128n * 0.5*(1-tanh((V(q)-2)/0.05))
++ - V(q)/2u * 0.5*(1-tanh((I(Vsl)-1m)/0.1m)))
+Cq q 0 1n
+Rq q 0 1G
+Bon x 0 V = 0.5*(1+tanh((V(q)-1)/0.02))
+Ron x on 1k
+Con on 0 1n
+Bsw MT2 MT1 I = V(MT2,MT1) * (V(on) / 8 + 1.25e-10)
+.model DLED D(IS=2.5e-13 N=1.9)
+.ends
+
+* ---------------------------------------------------------------------------
+* Anti-parallel / freewheel diode: Vishay VS-60EPS12-M3 (1200 V, 60 A, IFSM 1000 A).
+*   Fitted to VF = 1.09 V @ 60 A; RS extrapolates to ~2.3 V @ 500 A.
+* ---------------------------------------------------------------------------
+.model DCROWBAR D(IS=1.7e-8 N=1.6 RS=3m BV=1200 TT=1u CJO=200p)

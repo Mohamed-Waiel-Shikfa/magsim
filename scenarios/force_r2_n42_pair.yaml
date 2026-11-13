@@ -1,0 +1,45 @@
+# R2 (docs/SPEC.md "Reference cases"), force part: two N42 blocks 20 x 10 x 5 mm (size of the measured E1
+# blocks), magnetised through 5 mm, attracting. Library N42 (datasheet values, not the E1 fit). SI units.
+# Three 1-D sweeps: gap, lateral offset along the 20 mm side at 2 mm gap, tilt about y at 2 mm clearance.
+name: r2_n42_pair
+temperature_C: 20
+materials:
+  block: {grade: N42}
+magnets:
+  - name: A
+    shape: {type: cuboid, dims: [0.020, 0.010, 0.005]}
+    material: block
+    pose: {position: [0.0, 0.0, -0.0025]}
+    mesh: {n: [8, 4, 2]}
+  - name: B
+    shape: {type: cuboid, dims: [0.020, 0.010, 0.005]}
+    material: block
+    mesh: {n: [8, 4, 2]}
+# gap = clearance between the plane z = top of A and B's lowest point (so a tilted B never overlaps A);
+# tilt rotates B about the global y axis through its centroid
+layout: {body: B, reference: A, gap: 2.0e-3, offset: [0.0, 0.0], tilt_deg: 0.0, tilt_axis: [0, 1, 0]}
+target: B
+pivot: centroid
+protocol: [isolate, place, measure]
+outputs: [Fx, Fz, Ty, J_mean, J_min, converged, all_converged]
+sweeps:
+  - name: gap
+    axes:
+      - {path: layout.gap, linspace: [0.5e-3, 10.0e-3, 20]}
+    plot: {y: [Fz]}
+  - name: offset
+    axes:
+      - {path: "layout.offset[0]", linspace: [0.0, 30.0e-3, 16]}
+    plot: {y: [Fx, Fz]}
+  - name: tilt
+    axes:
+      - {path: layout.tilt_deg, linspace: [0.0, 45.0, 10]}
+    plot: {y: [Fz, Ty]}
+validation:
+  checks:
+    # mesh refinement of the tilted configuration (10 deg about y, 2 mm clearance)
+    - convergence:
+        base_n: [[4, 2, 1], [4, 2, 1]]
+        factors: [1, 2, 3]
+        outputs: [Fx, Fz, Ty]
+        set: {layout.tilt_deg: 10.0}

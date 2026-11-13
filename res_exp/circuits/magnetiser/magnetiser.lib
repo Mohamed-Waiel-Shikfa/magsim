@@ -1,0 +1,49 @@
+* Magnetiser SPICE models (ngspice). Behavioural, fitted to datasheet numbers.
+* Units: SI. All models valid for 25 degC unless noted.
+
+* ---------------------------------------------------------------------------
+* IXYS/Littelfuse CLA100E1200HB thyristor (TO-247: 1=K 2=A 3=G)
+* On-state: VT = 1.37 V @ 100 A (25 degC) with rT = 5 mOhm slope resistance
+*   (datasheet rT = 5.2 mOhm). At 2 kA this gives ~11 V per SCR.
+* Gate: VGT ~1.1 V @ 40 mA (2 ohm spreading R); latches when IG > IGT = 40 mA.
+* Regenerative: once conducting with anode current > IH = 100 mA it latches and
+*   holds without gate drive; blocks again below IH (natural commutation).
+* Smooth (tanh) logic and a conductance-controlled switch keep ngspice converging.
+* Turn-on delay ~1 us (tgd = 2 us max). No dv/dt or tq modelling.
+* ---------------------------------------------------------------------------
+.subckt CLA100E1200HB A G K
+Vsa A a1 0
+Bsw a1 a2 I = V(a1,a2) * (1e3 * V(lat) + 1e-8)
+D1 a2 K DSCR
+Dg G g1 DGATE
+Vsg g1 K 0
+Blat x 0 V = max(0.5*(1+tanh((I(Vsg)-40m)/5m)),
++ 0.5*(1+tanh((V(lat)-0.1)/0.02)) * 0.5*(1+tanh((I(Vsa)-100m)/20m)))
+Rlat x lat 1k
+Clat lat 0 1n
+.model DSCR D(IS=1.8e-8 N=1.5 RS=5m BV=1300)
+.model DGATE D(IS=1.6e-10 N=2 RS=2 CJO=1n)
+.ends
+
+* ---------------------------------------------------------------------------
+* Vishay VO4258H phototriac (DIP-6: 1=A 2=C 4=MT1 6=MT2)
+* LED Vf ~1.2 V @ 10 mA. Output on while IF > IFT; IFT(H bin) = 2 mA max,
+*   modelled at 1.5 mA. VTM = 3 V max @ 300 mA, modelled as 8 ohm.
+* No latching of the triac itself (LED pulse is held longer than SCR latch).
+* ---------------------------------------------------------------------------
+.subckt VO4258H A C MT1 MT2
+Dled A l1 DLED
+Vsl l1 C 0
+Bon x 0 V = 0.5*(1+tanh((I(Vsl)-1.5m)/0.2m))
+Ron x on 1k
+Con on 0 1n
+Bsw MT2 MT1 I = V(MT2,MT1) * (V(on) / 8 + 1.25e-10)
+.model DLED D(IS=2.5e-13 N=1.9)
+.ends
+
+* ---------------------------------------------------------------------------
+* Anti-parallel / freewheel diode: Vishay VS-60EPS12-M3 (1200 V, 60 A, IFSM 1000 A).
+*   Fitted to VF = 1.09 V @ 60 A; RS extrapolates to ~2.3 V @ 500 A.
+* ---------------------------------------------------------------------------
+.model DCROWBAR D(IS=1.7e-8 N=1.6 RS=3m BV=1200 TT=1u CJO=200p)
+

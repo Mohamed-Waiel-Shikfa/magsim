@@ -1,0 +1,33 @@
+# R3 (docs/SPEC.md "Reference cases"), force part: two LNG37 rods D4.75 x 12.5 mm, axial, coaxial,
+# attracting (the measured E2 pair). History: magnetised (+sat), handled open circuit, brought to the gap.
+# Sweeps: gap for both LNG37 parameter sets (vendor table vs FEMM curve fit), and lateral offset at contact.
+name: r3_lng37_pair
+temperature_C: 20
+materials:
+  rod: {grade: LNG37}
+magnets:
+  - name: A
+    shape: {type: cylinder, diameter: 4.75e-3, height: 12.5e-3}
+    material: rod
+    pose: {position: [0.0, 0.0, -6.25e-3]}
+    mesh: {n: [4, 1, 12]}
+  - name: B
+    shape: {type: cylinder, diameter: 4.75e-3, height: 12.5e-3}
+    material: rod
+    mesh: {n: [4, 1, 12]}
+layout: {body: B, reference: A, gap: 0.0, offset: [0.0, 0.0]}
+target: B
+protocol: [isolate, place, measure]
+outputs: [Fx, Fz, J_mean, J_min, H_par_mean, converged, all_converged]
+sweeps:
+  - name: gap
+    axes:
+      - {path: materials.rod.grade, values: [LNG37, LNG37-femm]}
+      - {path: layout.gap, values: [0.0, 0.05e-3, 0.1e-3, 0.2e-3, 0.3e-3, 0.5e-3, 0.75e-3, 1.0e-3, 1.5e-3, 2.0e-3, 3.0e-3]}
+    plot: {y: [Fz, J_mean_B]}
+  - name: offset
+    axes:
+      - {path: materials.rod.grade, values: [LNG37, LNG37-femm]}
+      # an offset rod is meshed in full rings, so the A-B cross blocks are not coaxial: slower
+      - {path: "layout.offset[0]", linspace: [0.0, 4.0e-3, 9]}
+    plot: {y: [Fx, Fz]}

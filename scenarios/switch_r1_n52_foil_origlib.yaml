@@ -1,0 +1,39 @@
+# R1 (docs/SPEC.md "Reference cases"): N52 20 x 20 x 5 mm magnetised through 5 mm, initially saturated
+# along -z, switched to +z by the 22-turn foil coil on the magnetiser board (780 uF at 450 V).
+# SI units. Run: uv run magsim switch run|sweep|validate scenarios/switch_r1_n52_foil.yaml
+name: switch_r1_n52_foil_origlib
+description: R1 with the ORIGINAL gate-controlled-conductance SCR model (magnetiser.lib), for comparison
+
+circuit:
+  board: res_exp/circuits/magnetiser          # kicad-cli export (RG = 2.2k, RLED = 470) + extra.yaml
+  # regenerative-latch thyristor (README_regen.md); use res_exp/circuits/magnetiser/magnetiser.lib for the
+  # original gate-controlled-conductance model
+  models: [res_exp/circuits/magnetiser/magnetiser.lib]
+  ic: {cap_int: 450.0}                     # bank voltage [V]
+  bank: {element: C1, node: cap_int}       # 780 uF (extra.yaml)
+  scr: {Q1: "i(v.xq1.vsa)", Q4: "i(v.xq4.vsa)"}   # GP16 fires Q1 + Q4 (COIL_A -> COIL_B)
+  tran: {tstep: 50.0e-9, tstop: 3.0e-3}
+
+coil:
+  reference: r1                            # 22-turn Cu foil 0.2 x 5 mm, 0.05 mm kapton, 20 x 20 bore
+  pose: {position: [0.0, 0.0, 0.0]}
+  temperature_C: 20.0
+
+magnet:
+  name: r1
+  shape: {type: cuboid, dims: [0.020, 0.020, 0.005]}
+  material: {grade: N52}
+  pose: {position: [0.0, 0.0, 0.0]}
+  easy_axis: [0.0, 0.0, 1.0]
+  mesh: {n: [5, 5, 3], q: 2}
+  initial: -sat
+  temperature_C: 20.0
+
+target_direction: [0.0, 0.0, 1.0]
+eddy: {enabled: true, n_r: 4, n_z: 2}      # rho_e from the N52 grade (1.5e-6 Ohm m)
+coupling: {tol: 1.0e-4, max_iter: 15, field_tol: 2.5e-3}
+outputs: {dir: res_sim/switch_r1_n52_foil_origlib, figures: true}
+
+validation:
+  initial_guess_scale: 0.5
+  meshes: [[3, 3, 1], [5, 5, 3], [7, 7, 5]]

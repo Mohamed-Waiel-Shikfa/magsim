@@ -1,0 +1,46 @@
+# SCR firing threshold of the anode-fired gate drive: R1 swept over bank voltage, RG1-RG4 = 2.2 kOhm (current schematic).
+# Compare with switch_r1_firing_rg470.yaml. Run: uv run magsim switch sweep scenarios/switch_r1_firing_rg2k2.yaml
+#
+# R1 (docs/SPEC.md "Reference cases"): N52 20 x 20 x 5 mm magnetised through 5 mm, initially saturated
+# along -z, switched to +z by the 22-turn foil coil on the magnetiser board (780 uF at 450 V).
+# SI units. Run: uv run magsim switch run|sweep|validate scenarios/switch_r1_n52_foil.yaml
+name: switch_r1_firing_rg2k2
+description: R1 N52 slab, foil coil, magnetiser board (regenerative SCR model), eddy loops on
+
+circuit:
+  board: res_exp/circuits/magnetiser          # kicad-cli export (RG = 2.2k, RLED = 470) + extra.yaml
+  # regenerative-latch thyristor (README_regen.md); use res_exp/circuits/magnetiser/magnetiser.lib for the
+  # original gate-controlled-conductance model
+  models: [res_exp/circuits/magnetiser/magnetiser_regen.lib]
+  ic: {cap_int: 450.0}                     # bank voltage [V]
+  bank: {element: C1, node: cap_int}       # 780 uF (extra.yaml)
+  scr: {Q1: "i(v.xq1.vsa)", Q4: "i(v.xq4.vsa)"}   # GP16 fires Q1 + Q4 (COIL_A -> COIL_B)
+  tran: {tstep: 50.0e-9, tstop: 3.0e-3}
+
+coil:
+  reference: r1                            # 22-turn Cu foil 0.2 x 5 mm, 0.05 mm kapton, 20 x 20 bore
+  pose: {position: [0.0, 0.0, 0.0]}
+  temperature_C: 20.0
+
+magnet:
+  name: r1
+  shape: {type: cuboid, dims: [0.020, 0.020, 0.005]}
+  material: {grade: N52}
+  pose: {position: [0.0, 0.0, 0.0]}
+  easy_axis: [0.0, 0.0, 1.0]
+  mesh: {n: [5, 5, 3], q: 2}
+  initial: -sat
+  temperature_C: 20.0
+
+target_direction: [0.0, 0.0, 1.0]
+eddy: {enabled: true, n_r: 4, n_z: 2}      # rho_e from the N52 grade (1.5e-6 Ohm m)
+coupling: {tol: 1.0e-4, max_iter: 15, field_tol: 2.5e-3}
+outputs: {dir: res_sim/switch_r1_firing_rg2k2, figures: false}
+
+sweep:
+  axes:
+    - {path: circuit.ic.cap_int, values: [150.0, 175.0, 185.0, 200.0, 225.0, 250.0, 300.0]}   # bank voltage [V]
+  workers: 2
+  labels: {circuit.ic.cap_int: "bank voltage [V]"}
+  plots:
+    - {x: circuit.ic.cap_int, xlabel: "bank voltage [V]", y: [I_pk_A, switched_fraction, V_bank_end_V]}

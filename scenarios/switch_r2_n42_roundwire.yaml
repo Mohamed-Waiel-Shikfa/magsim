@@ -1,0 +1,43 @@
+# R2 (docs/SPEC.md "Reference cases"): N42 20 x 10 x 5 mm block (size of the measured blocks), magnetised
+# through 5 mm, initially saturated along -z, switched to +z by a round-wire coil wound directly on it
+# (1.0 mm Cu, 1.07 mm OD, 5 turns/layer, 20 layers; sweep 18-25) on the magnetiser board (780 uF, 450 V).
+# SI units. Run: uv run magsim switch run|sweep scenarios/switch_r2_n42_roundwire.yaml
+name: switch_r2_n42_roundwire
+description: R2 N42 block, round-wire coil (layer sweep), magnetiser board (regenerative SCR model)
+
+circuit:
+  board: res_exp/circuits/magnetiser
+  models: [res_exp/circuits/magnetiser/magnetiser_regen.lib]
+  ic: {cap_int: 450.0}
+  bank: {element: C1, node: cap_int}
+  scr: {Q1: "i(v.xq1.vsa)", Q4: "i(v.xq4.vsa)"}
+  tran: {tstep: 100.0e-9, tstop: 6.0e-3}
+
+coil:
+  reference: r2                            # magnet-flip-sim params.py: 1.0 mm wire, 5 turns/layer
+  overrides: {n_layers: 20}
+  pose: {position: [0.0, 0.0, 0.0]}
+  temperature_C: 20.0
+
+magnet:
+  name: r2
+  shape: {type: cuboid, dims: [0.020, 0.010, 0.005]}
+  material: {grade: N42}
+  pose: {position: [0.0, 0.0, 0.0]}
+  easy_axis: [0.0, 0.0, 1.0]
+  mesh: {n: [5, 3, 3], q: 2}
+  initial: -sat
+  temperature_C: 20.0
+
+target_direction: [0.0, 0.0, 1.0]
+eddy: {enabled: true, n_r: 3, n_z: 2}      # rho_e from the N42 grade (1.4e-6 Ohm m)
+coupling: {tol: 1.0e-4, max_iter: 15, field_tol: 2.5e-3}
+outputs: {dir: res_sim/switch_r2_n42_roundwire, figures: true}
+
+sweep:
+  axes:
+    - {path: coil.overrides.n_layers, values: [8, 10, 12, 14, 16, 18, 20, 22, 25]}
+  workers: 3
+  plots:
+    - {x: coil.overrides.n_layers, xlabel: "layers [-]",
+       y: [switched_fraction, relative_remanence, I_pk_A, H_felt_weakest_A_per_m, dT_coil_K]}

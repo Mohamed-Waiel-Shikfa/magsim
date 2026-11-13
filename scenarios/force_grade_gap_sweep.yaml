@@ -1,0 +1,27 @@
+# Grade demo: force vs gap for one geometry (the R2 20 x 10 x 5 mm block pair, magnetised through 5 mm)
+# and five library grades. History: +sat -> open circuit -> placed. The flat block is a poor shape for
+# Alnico (large self-demagnetisation drives it below the knee), which the J_mean curves show.
+name: grade_gap_sweep
+temperature_C: 20
+materials:
+  block: {grade: N42}
+magnets:
+  - name: A
+    shape: {type: cuboid, dims: [0.020, 0.010, 0.005]}
+    material: block
+    pose: {position: [0.0, 0.0, -0.0025]}
+    mesh: {n: [8, 4, 2]}
+  - name: B
+    shape: {type: cuboid, dims: [0.020, 0.010, 0.005]}
+    material: block
+    mesh: {n: [8, 4, 2]}
+layout: {body: B, reference: A, gap: 2.0e-3}
+target: B
+protocol: [isolate, place, measure]
+outputs: [Fz, J_mean, J_min, converged, all_converged]
+sweep:
+  name: grade_gap
+  axes:
+    - {path: materials.block.grade, values: [N35, N42, N52, LNG37, Alnico 8]}
+    - {path: layout.gap, values: [0.5e-3, 1.0e-3, 2.0e-3, 3.0e-3, 4.0e-3, 6.0e-3, 8.0e-3, 10.0e-3]}
+  plot: {y: [Fz, J_mean_B]}

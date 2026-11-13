@@ -1,0 +1,17 @@
+# Source: $PARENT/simulations_old/Force_compute/FEMM/accurate_alnico.FEM, material block "Cast Alnico 5 (LNG37)".
+# FEMM stores the curve as (B [T], H [A/m]) pairs, B first.
+# FEMM block <H_c> = 48600 A/m. For a nonlinear permanent magnet FEMM stores the demag curve
+# shifted right by H_c so it starts at (H=0, B=0); the last point is (H_c, Br).
+# SHIFTED here: H_A_per_m = H_FEMM - H_c, i.e. the physical second-quadrant curve (B=Br at H=0).
+H_A_per_m,B_T
+-48600,0
+-47000,0.2781
+-44500,0.6383
+-42300,0.8234
+-40000,0.9214
+-35200,1.013
+-30400,1.064
+-24300,1.106
+-15600,1.149
+-6070,1.184
+0,1.204

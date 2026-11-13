@@ -1,0 +1,33 @@
+# E2 (docs/SPEC.md "Reference cases"): two cast Alnico LNG37 rods D4.75 x 12.5 mm, magnetised axially,
+# coaxial, attracting; measured gaps 0-0.4 mm (res_exp/force/mag_force_data.csv, "Alnico" group).
+# The CSV gap column has two readings (SPEC open question): the value in mm, or value/0.05 spacer sheets
+# of 0.10 mm (gap = 2 x value). `validate` runs both, for the vendor LNG37 and the FEMM-fitted LNG37-femm.
+name: e2_lng37_rods
+temperature_C: 20
+materials:
+  rod: {grade: LNG37}
+magnets:
+  - name: A
+    shape: {type: cylinder, diameter: 4.75e-3, height: 12.5e-3}
+    material: rod
+    pose: {position: [0.0, 0.0, -6.25e-3]}
+    mesh: {n: [4, 1, 12]}
+  - name: B
+    shape: {type: cylinder, diameter: 4.75e-3, height: 12.5e-3}
+    material: rod
+    mesh: {n: [4, 1, 12]}
+layout: {body: B, reference: A, gap: 0.0}
+target: B
+# magnetised (+sat) -> handled open circuit -> brought to the gap -> measured
+protocol: [isolate, place, measure]
+outputs: [Fz, J_mean, J_min, H_par_mean, converged, all_converged]
+sweep:
+  name: gap_grade
+  axes:
+    - {path: materials.rod.grade, values: [LNG37, LNG37-femm]}
+    - {path: layout.gap, values: [0.0, 0.05e-3, 0.1e-3, 0.15e-3, 0.2e-3, 0.3e-3, 0.4e-3, 0.6e-3, 0.8e-3]}
+  plot: {y: [Fz, J_mean_B]}
+validation:
+  checks:
+    - e2_replay: {variants: [LNG37, LNG37-femm], readings: [csv_mm, sheets], n_rep: 3, fit_scale: true, fem: true}
+    - convergence: {base_n: [[2, 1, 6], [2, 1, 6]], factors: [1, 1.5, 2, 3, 4], outputs: [Fz, J_mean_B]}

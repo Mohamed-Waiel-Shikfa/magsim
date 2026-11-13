@@ -1,0 +1,26 @@
+# R2 2-D sweep: N42 block pair (as force_r2_n42_pair.yaml), gap x lateral offset (along the 20 mm side);
+# heatmap + contours of the attraction Fz and the lateral restoring force Fx.
+name: r2_n42_gap_offset_map
+temperature_C: 20
+materials:
+  block: {grade: N42}
+magnets:
+  - name: A
+    shape: {type: cuboid, dims: [0.020, 0.010, 0.005]}
+    material: block
+    pose: {position: [0.0, 0.0, -0.0025]}
+    mesh: {n: [8, 4, 2]}
+  - name: B
+    shape: {type: cuboid, dims: [0.020, 0.010, 0.005]}
+    material: block
+    mesh: {n: [8, 4, 2]}
+layout: {body: B, reference: A, gap: 2.0e-3, offset: [0.0, 0.0]}
+target: B
+protocol: [isolate, place, measure]
+outputs: [Fx, Fz, Ty, converged, all_converged]
+sweep:
+  name: gap_offset
+  axes:
+    - {path: "layout.offset[0]", linspace: [0.0, 25.0e-3, 11]}
+    - {path: layout.gap, linspace: [1.0e-3, 6.0e-3, 6]}
+  plot: {y: [Fz, Fx]}
